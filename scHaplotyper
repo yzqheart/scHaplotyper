@@ -1,0 +1,116 @@
+#!/usr/bin/bash
+
+usage()
+{
+cat << BROWSERS
+
+Purpose:
+scHaplotyper is a pipeline for preimplantation genetic test. This will give a judegment of disease allea carrier status for each embryo.
+
+Usage: 
+./`basename $0` SampleInfoFile MutationInfoFile VcfFile
+
+Example:
+./`basename $0` example/Case2.SampleInfo.csv example/Case2.MutationInfo.csv example/Case2.vcf
+
+BROWSERS
+
+exit 1
+}
+
+[ $# -ne 3 ] && usage
+
+SampleInfoFile=$1
+MutationInfoFile=$2
+VcfFile=$3
+
+DEPTH=3
+
+####1, get mutation chr,pos
+
+MutationType=`cat $MutationInfoFile | head -n 2 |tail -n 1  |awk -F ',' '{print $1}'`
+
+chrFather=`cat $MutationInfoFile | head -n 2 |tail -n 1  |awk -F ',' '{print $2}'|awk -F ':' '{print $1}'`
+chrMother=`cat $MutationInfoFile | head -n 2 |tail -n 1  |awk -F ',' '{print $3}'|awk -F ':' '{print $1}'`
+
+posFather=`cat $MutationInfoFile | head -n 2 |tail -n 1  |awk -F ',' '{print $2}'|awk -F ':' '{print $2}'`
+posMother=`cat $MutationInfoFile | head -n 2 |tail -n 1  |awk -F ',' '{print $3}'|awk -F ':' '{print $2}'`
+
+if [ $chrFather = "NA" -a $chrMother = "NA" ];
+then
+	echo "Both chromosome of father and chromosome of mother are NA"
+	exit
+fi
+
+if [ $chrFather != "NA" -a $chrMother != "NA" -a $chrFather != $chrMother ];
+then
+	echo "Chromosome of father and chromosome of mother are not matched"
+	exit
+fi
+
+if [ $chrFather != "NA" ];
+then
+	chrom=$chrFather
+elif [ $chrMother != "NA" ];
+then
+	chrom=$chrMother
+else
+	echo "Bad chrs"
+	exit
+fi
+
+####2, make genotype and depth file
+[ -d intermediate ] && rm -rf intermediate
+mkdir intermediate
+
+bcftools query -i 'TYPE="snp"' -f '%CHROM\t%POS\t%ID\t%REF\t%ALT[\t%SAMPLE=%TGT]\n' $VcfFile > intermediate/all_GT.txt
+
+bcftools query -i 'TYPE="snp"' -f '%CHROM\t%POS\t%ID\t%REF\t%ALT[\t%SAMPLE=%DP]\n' $VcfFile > intermediate/all_DP.txt
+
+cat intermediate/all_GT.txt | grep -w $chrom > intermediate/all_${chrom}_GT.txt
+cat intermediate/all_DP.txt | grep -w $chrom > intermediate/all_${chrom}_DP.txt
+
+####3, parse genotype and depth file, produced three files: proband, father.snp.het.filter, mother.snp.het.filter
+if [ $chrom = "chrX" ];
+then
+	python ./bin/prepare.haplotyping.chrX.py intermediate/all_${chrom}_DP.txt intermediate/all_${chrom}_GT.txt $SampleInfoFile
+else
+	python ./bin/prepare.haplotyping.py intermediate/all_${chrom}_DP.txt intermediate/all_${chrom}_GT.txt $SampleInfoFile
+fi
+
+#4, HMM and plot
+
+#4.1 pat snp HMM
+patsnphetfilter=intermediate/father.snp.het.filter
+
+head -n 1 $patsnphetfilter > intermediate/header.pat.temp
+cat $patsnphetfilter | grep -w $chrom > intermediate/${chrom}.pat.snp.het.filter.temp
+cat intermediate/header.pat.temp intermediate/${chrom}.pat.snp.het.filter.temp > intermediate/${chrom}.pat.snp.het.filter
+rm intermediate/*.temp
+
+perl ./bin/phasing_by_pairwise_hmm.green.red.pl intermediate/${chrom}.pat.snp.het.filter intermediate/proband $posFather
+
+
+#4.2 mat snp HMM
+matsnphetfilter=intermediate/mother.snp.het.filter
+
+head -n 1 $matsnphetfilter > intermediate/header.mat.temp
+cat $matsnphetfilter | grep -w $chrom > intermediate/${chrom}.mat.snp.het.filter.temp
+cat intermediate/header.mat.temp intermediate/${chrom}.mat.snp.het.filter.temp > intermediate/${chrom}.mat.snp.het.filter
+rm intermediate/*.temp
+
+perl ./bin/phasing_by_pairwise_hmm.yellow.blue.pl intermediate/${chrom}.mat.snp.het.filter intermediate/proband $posMother
+
+#4, final results
+[ -d results ] && rm -rf results
+mkdir results
+
+if [ $chrFather != "NA" ];
+then
+	cp -rf intermediate/chr*pat*.svg results
+fi
+
+if [ $chrMother != "NA" ];
+then
+	cp -rf intermediate/chr*mat*.svg results
+fi
