@@ -7,7 +7,7 @@ scHaplotyper performs haplotyping for genetic diagnosis using single cell DNA se
 ## Platform and prerequisite
 * Linux<br>
 * bcftools<br>
-* Perl [SVG](https://metacpan.org/release/SVG) module is required. To test SVG install: `perldoc SVG`<br>
+* Perl [SVG](https://metacpan.org/release/SVG) module is required. To test SVG installation: `perldoc SVG`<br>
 To install perl SVG, simply copy and paste either of the commands in to your terminal (root may be required):<br>
 	* cpanm:<br>
 		`cpanm SVG`<br>
@@ -15,8 +15,7 @@ To install perl SVG, simply copy and paste either of the commands in to your ter
 	* CPAN shell:<br>
 		`perl -MCPAN -e shell`<br>
 		`install SVG`<br>
-		
-Test SVG installation: `perldoc SVG`<br>    
+
 ## Obtain and install
 Download the latest source release on github.<br>
 
