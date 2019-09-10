@@ -15,6 +15,7 @@ To install perl SVG, simply copy and paste either of the commands in to your ter
 	* CPAN shell:<br>
 		`perl -MCPAN -e shell`<br>
 		`install SVG`<br>
+		
 Test SVG install: `perldoc SVG`<br>    
 ## Obtain and install
 Download the latest source release on github.<br>
