@@ -25,7 +25,7 @@ Configure the package:<br>
 ## Data requirements
 scHaplotyper requires:<br>
 * sample information file indicates identity of each sample and known disease allea carrier status of the diagnosis family.<br>
-* mutation information contains mutation type and position of the gene.<br>
+* mutation information file contains mutation type and position of the gene.<br>
 * joint called vcf file of the family.<br>
 
 See the above [example](https://github.com/yzqheart/scHaplotyper/tree/master/example) to explore the example inputs provided.
